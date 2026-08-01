@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vector Shape Learner</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0d0e12;
+      color: #f5f5f7;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 50% -20%, #33254d 0, #15151d 34%, #0d0e12 70%); }
+    main { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 52px 0 72px; }
+    header { margin-bottom: 24px; }
+    h1 { font-size: clamp(30px, 5vw, 52px); letter-spacing: -0.045em; margin: 0 0 8px; }
+    header p { margin: 0; color: #a9a9b4; font-size: 16px; }
+    .shell { display: grid; grid-template-columns: 340px 1fr; gap: 18px; }
+    .panel { background: rgba(25, 25, 34, 0.88); border: 1px solid #30303c; border-radius: 18px; padding: 20px; box-shadow: 0 24px 70px rgba(0,0,0,.28); }
+    label { display: block; color: #bdbdc7; font-size: 13px; font-weight: 650; margin: 18px 0 7px; }
+    label:first-child { margin-top: 0; }
+    input[type=file], select, button, a.download { width: 100%; border-radius: 11px; font: inherit; }
+    input[type=file], select { border: 1px solid #3a3a47; background: #121219; color: #f5f5f7; padding: 11px; }
+    input[type=file]::file-selector-button { border: 0; border-radius: 7px; background: #30303e; color: white; padding: 7px 10px; margin-right: 10px; cursor: pointer; }
+    button { margin-top: 22px; border: 0; padding: 13px 15px; color: white; font-weight: 750; cursor: pointer; background: linear-gradient(135deg, #8a5cff, #b347d0); box-shadow: 0 10px 28px rgba(138,92,255,.23); }
+    button:hover { filter: brightness(1.08); }
+    button:disabled { cursor: wait; opacity: .62; }
+    .hint { margin: 8px 0 0; color: #858592; font-size: 12px; line-height: 1.45; }
+    .status { min-height: 20px; margin-top: 16px; color: #aaaab6; font-size: 13px; }
+    .status.error { color: #ff818d; }
+    .viewer { min-height: 570px; display: grid; place-items: center; position: relative; overflow: hidden; background: #09090d; }
+    .placeholder { color: #676774; text-align: center; max-width: 290px; line-height: 1.55; }
+    .viewer img { display: none; max-width: 100%; max-height: 650px; object-fit: contain; }
+    .viewer.ready img { display: block; }
+    .viewer.ready .placeholder { display: none; }
+    .actions { position: absolute; left: 16px; right: 16px; bottom: 16px; display: none; align-items: center; gap: 12px; padding: 10px; border-radius: 12px; background: rgba(12,12,17,.82); backdrop-filter: blur(10px); }
+    .viewer.ready .actions { display: flex; }
+    a.download { width: auto; min-width: 150px; text-align: center; text-decoration: none; color: white; background: #743eea; padding: 10px 14px; font-weight: 700; }
+    .metrics { color: #c3c3cc; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .badge { display: inline-flex; align-items: center; gap: 7px; margin-top: 14px; color: #a9f2bc; font-size: 12px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #62d882; box-shadow: 0 0 12px #62d882; }
+    @media (max-width: 790px) {
+      main { padding-top: 28px; }
+      .shell { grid-template-columns: 1fr; }
+      .viewer { min-height: 420px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Image to SVG</h1>
+    <p>Drop in an image, vectorize it locally on your GPU, and download the result.</p>
+    <div class="badge"><span class="dot"></span><span id="device">Connecting to local model…</span></div>
+  </header>
+  <div class="shell">
+    <form class="panel" id="form">
+      <label for="image">Source image</label>
+      <input id="image" name="image" type="file" accept="image/png,image/jpeg,image/webp,image/bmp,image/tiff" required>
+
+      <label for="mode">Mode</label>
+      <select id="mode" name="mode">
+        <option value="fast">Fast model — about a second</option>
+        <option value="refined">Refined fit — higher quality</option>
+      </select>
+      <p class="hint" id="modeHint">Uses the trained checkpoint for immediate inference.</p>
+
+      <label for="shapes">Object count</label>
+      <select id="shapes" name="shapes"></select>
+
+      <div id="qualityWrap" hidden>
+        <label for="quality">Quality</label>
+        <select id="quality" name="quality">
+          <option value="quick">Quick — about 1–3 seconds at 450</option>
+          <option value="balanced" selected>Balanced — about 2 seconds at 450</option>
+          <option value="detailed">Detailed — about 3 seconds at 450</option>
+        </select>
+      </div>
+
+      <button id="submit" type="submit">Vectorize image</button>
+      <div class="status" id="status"></div>
+    </form>
+
+    <section class="panel viewer" id="viewer">
+      <div class="placeholder" id="placeholder">Your SVG preview will appear here. Everything runs locally and outputs a normal editable SVG file.</div>
+      <img id="preview" alt="Generated SVG preview">
+      <div class="actions">
+        <a class="download" id="download" download>Download SVG</a>
+        <div class="metrics" id="metrics"></div>
+      </div>
+    </section>
+  </div>
+</main>
+<script>
+  const form = document.querySelector('#form');
+  const mode = document.querySelector('#mode');
+  const shapes = document.querySelector('#shapes');
+  const qualityWrap = document.querySelector('#qualityWrap');
+  const modeHint = document.querySelector('#modeHint');
+  const submit = document.querySelector('#submit');
+  const status = document.querySelector('#status');
+  const viewer = document.querySelector('#viewer');
+  const preview = document.querySelector('#preview');
+  const download = document.querySelector('#download');
+  const metrics = document.querySelector('#metrics');
+  let fastMax = 64;
+
+  function setOptions(values, selected) {
+    shapes.replaceChildren(...values.map(value => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = `${value} objects`;
+      option.selected = value === selected;
+      return option;
+    }));
+  }
+
+  function updateMode() {
+    const refined = mode.value === 'refined';
+    qualityWrap.hidden = !refined;
+    const fastOptions = [16, 32, 64, 128, 256, 450].filter(value => value <= fastMax);
+    if (!fastOptions.length || fastOptions[fastOptions.length - 1] !== fastMax) fastOptions.push(fastMax);
+    const values = refined ? [64, 128, 256, 450] : fastOptions;
+    setOptions(values, refined ? 450 : values[values.length - 1]);
+    modeHint.textContent = refined
+      ? 'Uses the trained model as a warm start, then refines it against this exact image.'
+      : 'Uses the trained checkpoint for immediate inference.';
+  }
+
+  mode.addEventListener('change', updateMode);
+
+  fetch('/api/status').then(response => response.json()).then(info => {
+    fastMax = info.fast_trained_shapes || 64;
+    document.querySelector('#device').textContent = info.gpu ? `${info.gpu} ready` : `${info.device} ready`;
+    if (!info.fast_available) {
+      mode.value = 'refined';
+      mode.querySelector('option[value=fast]').disabled = true;
+    }
+    updateMode();
+  }).catch(() => document.querySelector('#device').textContent = 'Local server ready');
+
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    status.className = 'status';
+    status.textContent = mode.value === 'fast' ? 'Running GPU inference…' : 'Fitting the SVG… keep this window open.';
+    submit.disabled = true;
+    submit.textContent = 'Working…';
+    try {
+      const response = await fetch('/api/vectorize', { method: 'POST', body: new FormData(form) });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || 'Vectorization failed');
+      const cacheKey = `?v=${Date.now()}`;
+      preview.src = result.svg_url + cacheKey;
+      download.href = result.svg_url;
+      download.download = result.download_name;
+      const meta = result.metadata;
+      const seconds = Number(meta.elapsed_seconds || 0).toFixed(2);
+      metrics.textContent = `${meta.shapes || meta.active_shapes} objects · ${seconds}s · ${meta.native_size.join('×')}`;
+      viewer.classList.add('ready');
+      status.textContent = 'Done — preview ready.';
+    } catch (error) {
+      status.className = 'status error';
+      status.textContent = error.message;
+    } finally {
+      submit.disabled = false;
+      submit.textContent = 'Vectorize image';
+    }
+  });
+  updateMode();
+</script>
+</body>
+</html>

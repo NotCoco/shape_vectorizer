@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vector-shape-learner"
+version = "0.1.0"
+description = "GPU image-to-SVG learning and progressive vector fitting"
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.6",
+    "numpy>=1.26",
+    "Pillow>=10.0",
+]
+
+[project.optional-dependencies]
+cuda = ["cupy-cuda12x>=13.3,<14"]
+
+[tool.setuptools.packages.find]
+include = ["vectorlearner*"]
+
+[tool.setuptools.package-data]
+vectorlearner = ["*.html"]

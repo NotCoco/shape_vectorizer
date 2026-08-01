@@ -1,0 +1,32 @@
+.venv/
+.cuda_runtime/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+.env
+.env.*
+.DS_Store
+Thumbs.db
+
+data/*
+!data/.gitkeep
+runs/*
+!runs/.gitkeep
+
+# Keep private inputs, generated previews, and training checkpoints out by default.
+*.pt
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.bmp
+*.tif
+*.tiff
+
+# Deliberately published model and real CC0 demo artifacts.
+!models/shape_vectorizer_v2.pt
+!docs/examples/demo_input.jpg
+!docs/examples/demo_comparison.png

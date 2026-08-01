@@ -17,7 +17,7 @@ their placement and colours directly against the source pixels.
   </tr>
 </table>
 
-This is an untouched CC0 photograph run through the actual pipeline. The resulting SVG is 60.9 KB,
+This is an untouched CC0 photograph run through the actual pipeline. The resulting SVG is about 60 KB,
 uses exactly 450 foreground vector objects, and reached 25.32 dB PSNR in the final preview. The full run took
 11.4 seconds including model initialization and 120 refinement steps.
 
